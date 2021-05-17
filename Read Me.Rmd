@@ -9,11 +9,10 @@ output: html_document
 
 * Case study to study trends of annual and casual riders' behavior at Cyclistic.
 * Aim of this analysis, to share findings with stakeholders to increase users with annual subscription.
-* Data provided by, by Motivate International Inc. under this [liecense](https://www.divvybikes.com/data-license-agreement).
+* [Data](https://divvy-tripdata.s3.amazonaws.com/index.html) provided by, by Motivate International Inc. under this [liecense](https://www.divvybikes.com/data-license-agreement).
 
 ## Stakeholders
 
-* Cyclistic
 * Manager/Director of marketing
 * Cyclistic marketing analytics team
 * Cyclistic executive team
