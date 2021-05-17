@@ -82,7 +82,7 @@ library(dplyr)
 library(radiant)
 
 # Get all csv files from the directory
-setwd("/Users/pareshkacha/Documents/Capestone proj1/Cyclistic_DA/Cyclistic project data/")
+setwd("C:\\Users\\Paresh\\Documents\\Cyclistic\\Cyclistic_DA\\DataSets\\")
 
 #  Store file name in variable for easy access
 file <- "202004-divvy-tripdata"
@@ -234,3 +234,5 @@ Findings
 ● How could your team and business apply your insights?
 ● What next steps would you or your stakeholders take based on your findings?
 ● Is there additional data you could use to expand on your findings?
+
+# **Currently working**
