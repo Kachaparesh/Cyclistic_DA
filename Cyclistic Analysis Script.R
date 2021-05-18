@@ -106,6 +106,17 @@ for(i in 1:length(files)){
  data_quality_metrics <- c(total_records, nrow(records_without_missing_ending_trip_data), records_with_valid_distance, count_of_valid_records)
  print(data_quality_metrics)
  
+ # Usage analysis per week day
+ plotPrep <- records_with_valid_ride_duration %>% 
+   group_by(start_day, member_casual, start_ride_month) %>% 
+   dplyr :: summarise(count = n(), usage = sum(ride_distance_in_meter), duration = sum(ride_avg_speed_in_meter_per_sec))
+
+ ggplot(data = plotPrep) +
+ geom_col(position = "dodge", mapping = aes(x=start_day, y=duration, fill = member_casual)) +
+   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1,size=7)) +
+   facet_wrap(~start_ride_month)
+ 
+ 
  # New file name using old one
  newFileName <- paste(paste(finalFileName, "-validated", sep = ""), fileExtension, sep = ".") 
  newPath <- paste(paste(current_path, "validated_data", sep = ""), newFileName, sep = "\\")
