@@ -20,7 +20,7 @@ output: html_document
 # Prepare Phase
 
 ### Where is your data located?
-12 Month data is available in CSV format by online directory access
+13 Month data is available in CSV format by online directory access
 
 ### How is the data organized?
 Data is organized in such a way that we can create metrics in timely manner and store wise as well, this both dimensions are useful and with unique records with date-time and store id, it also include Latitude and Longitude so distance measurement is also available.
@@ -80,6 +80,10 @@ library(dplyr)
 # Package to calculate geo distance 
 library(radiant)
 
+# Data visualization library
+library(ggplot2)
+library(gridExtra)
+
 # Get all csv files from the directory
 setwd("C:\\Users\\Paresh\\Documents\\Cyclistic\\Cyclistic_DA\\DataSets\\")
 
@@ -97,7 +101,7 @@ trip_data <- read.csv(fileName)
 str(trip_data)
 ```
     
-From execution of above code chunk, we can see there are total 84776 records with 13 columns
+From execution of above code chunk, we can see records with 13 columns
     
 ```{r Check for uniqueness of records by checking duplicate Ride Id}
 trip_data %>% 
@@ -110,42 +114,57 @@ trip_data %>%
 Above code snippet confirms that all the records are unique and available for analysis.
     
 ```{r filter missing data, and check ratio}
-
 # 1) total number of record in the data frame
-total_records <- nrow(trip_data)
-
-# 2) Get records without missing value
-records_without_missing_values <- trip_data[complete.cases(trip_data), ]
-
-# 3) filter records further to check validation: positive time duration and time is not more then a day
-
-records_without_missing_values$ride_duration <- as.numeric(difftime(strptime(records_without_missing_values$ended_at, "%Y-%m-%d %H:%M:%S", tz = "GMT"), strptime(records_without_missing_values$started_at, "%Y-%m-%d %H:%M:%S", tz = "GMT"), units = "secs"))
+  total_records <- nrow(trip_data)
   
-records_with_valid_values <- filter(records_without_missing_values, ride_duration > 0)
+  # 2) Get records without missing value
+  records_without_missing_ending_trip_data <- trip_data[!apply(trip_data, 1, function(x) any(x=="")),] 
 
-
-# 4) Get week day of start and end times for further analysis
-records_with_valid_values$start_day <- weekdays(as.Date(records_with_valid_values$started_at))
-records_with_valid_values$end_day <- weekdays(as.Date(records_with_valid_values$ended_at))
-
-# 5) Insert new row with distance in meter
-records_with_valid_values$ride_distance_in_meter <- as.numeric(
+  # 3) filter records further to check validation: positive time duration where time is not more then a day
+  ride_duration_in_secs <- as.numeric(difftime(strptime(records_without_missing_ending_trip_data$ended_at, "%Y-%m-%d %H:%M:%S", tz = "GMT"), strptime(records_without_missing_ending_trip_data$started_at, "%Y-%m-%d %H:%M:%S", tz = "GMT"), units = "secs"))
+  records_without_missing_ending_trip_data$ride_duration_in_secs <- round(ride_duration_in_secs, 2)
+  
+  records_with_valid_ride_duration <- filter(records_without_missing_ending_trip_data, ride_duration_in_secs > 0)
+  
+  # 4.1) Get week day of start and end times for further analysis
+  records_with_valid_ride_duration$start_day <- weekdays(as.Date(records_with_valid_ride_duration$started_at))
+  records_with_valid_ride_duration$end_day <- weekdays(as.Date(records_with_valid_ride_duration$ended_at))
+  
+  # 4.2) Get month of start and end times for further analysis
+  records_with_valid_ride_duration$start_ride_month <- months(as.Date(records_with_valid_ride_duration$started_at))
+  records_with_valid_ride_duration$end_ride_month <- months(as.Date(records_with_valid_ride_duration$ended_at))
+  
+  # 4.3) Get hour and date of start times for further analysis
+  records_with_valid_ride_duration$start_ride_hour <- hour(records_with_valid_ride_duration$started_at)
+  records_with_valid_ride_duration$start_ride_date <- date(records_with_valid_ride_duration$started_at)
+  
+  # 5) Insert new row with distance in meter
+  records_with_valid_ride_duration$ride_distance_in_meter <- round(
     as_distance(
-      records_with_valid_values$start_lat, records_with_valid_values$start_lng, records_with_valid_values$end_lat, records_with_valid_values$end_lng, unit = "km"
-      ) * 1000
-    )
-
-# 6) To check avg speed of ride in meter/second, to filter bias and consider riders who has actually ride the bike
-records_with_valid_values$ride_avg_speed <- records_with_valid_values$ride_distance_in_meter/as.numeric(records_with_valid_values$ride_duration)
-
-records_with_valid_values <- records_with_valid_values %>% filter(ride_avg_speed > 0)
-
-# Count total valid records
-count_of_valid_records <- nrow(records_with_valid_values)
-
-# 7) check if 80% of data qualifies for the analysis
-ratio_of_valid_records <- (count_of_valid_records/total_records)*100
-print(ratio_of_valid_records)
+      records_with_valid_ride_duration$start_lat, records_with_valid_ride_duration$start_lng, records_with_valid_ride_duration$end_lat, records_with_valid_ride_duration$end_lng, unit = "km"
+    ) * 1000
+    , 2)
+  
+  # 5.1) filter rows that shows no ride distance
+  records_with_valid_ride_duration <- records_with_valid_ride_duration %>% filter(ride_distance_in_meter > 0)
+  
+  records_with_valid_distance <- nrow(records_with_valid_ride_duration)
+  
+  # 6) To check avg speed of ride in meter/second, to filter bias and consider riders who has actually ride the bike
+  records_with_valid_ride_duration$ride_avg_speed_in_meter_per_sec <- round(records_with_valid_ride_duration$ride_distance_in_meter/as.numeric(records_with_valid_ride_duration$ride_duration), 2)
+  
+  records_with_valid_ride_duration <- records_with_valid_ride_duration %>% filter(ride_avg_speed_in_meter_per_sec < 20)
+  
+  # Count total valid records
+  count_of_valid_records <- nrow(records_with_valid_ride_duration)
+  
+  # 7) check if 80% of data qualifies for the analysis
+  ratio_of_valid_records <- (count_of_valid_records/total_records)*100
+  print(ratio_of_valid_records)
+  
+  # data analysis for quality
+ data_quality_metrics <- c(total_records, nrow(records_without_missing_ending_trip_data), records_with_valid_distance, count_of_valid_records)
+ print(data_quality_metrics)
 ```
     
 Above code filter records with missing values, invalid values and biased records.
@@ -173,7 +192,7 @@ Process to filter records with biased data
 
 ### Have you documented your cleaning process so you can review and share those results?
 
-Yes cleaning process is divided in 3 parts and each of them are documented above, with necessary code its reasoning and more explanation.
+Yes cleaning process is divided in 3 parts and each of them are documented above, with necessary code, its reasoning and more explanation.
 
 This cleaning process is performed on data sheet of one month, and it can be automated for other data sheets.
 
@@ -184,18 +203,14 @@ Now the data is ready to analyze the trend against week days, ride distance and 
 
 ### How should you organize your data to perform analysis on it?
 
-To use above validated records later for analysis, I am going to write every frame in its relative csv file format, which will be created new at different location.
-```{r csv file creation with new name and location}
-
-# New file name using old one
-newFileName <- paste(paste(file, "-validated", sep = ""), fileExtension, sep = ".") 
-write.csv(records_with_valid_values, newFileName)
-```
+To use above validated records later for analysis, I am going to write every frame in its relative csv file format, which will be created at different location.
 
 
 ### Has your data been properly formatted?
 
 Data is rectified with 3 different processes and stored in newly created CSV files for later use without affecting original data.
+
+More on that, I have performed single file operation which is automated later on for every file with forloop.
 
 ### What surprises did you discover in the data?
 
@@ -215,23 +230,77 @@ Findings
 
 ### What trends or relationships did you find in the data?
 
-### How will these insights help answer your business questions?
+- After performing EDA i came to know that, annual members use E-Cycle with peace of mind, and more frequently. Where casual members use E-Cycle more then annual members in terms of duration and distance, which means casual members rush their commute.
 
+### How will these insights help answer your business questions?
+- This findings will help stakeholders to find a gap, how to overcome and use it for a marketing strategy. For example casual user do enjoy rides, but they rush their riding which means they don't want to tie themselves in pricing criteria and want to use this services within short time span. So possible solution might be to offer monthly subscription along with annual subscription.
 
 # Share Phase
 
-● Were you able to answer the question of how annual members and casual riders use Cyclistic bikes differently?
-● What story does your data tell?
-● How do your findings relate to your original question?
-● Who is your audience? What is the best way to communicate with them?
-● Can data visualization help you share your findings?
-● Is your presentation accessible to your audience?
+### Were you able to answer the question of how annual members and casual riders use Cyclistic bikes differently?
+
+- Casual members do enjoy riding bikes, but they don't want to get tied in annual subscription. In result they rush their commute as they are paying as per their ride distance i guess. Where annual member use bikes with peace of mind and more frequently than casual users.
+
+### What story does your data tell?
+```{r}
+# Usage analysis per week day
+ plotPrep <- records_with_valid_ride_duration %>% 
+   group_by(start_day, member_casual, start_ride_month) %>% 
+   dplyr :: summarise(count = n(), usage = sum(ride_distance_in_meter), duration = sum(ride_duration_in_secs))
+
+p1 <- ggplot(data = plotPrep) +
+ geom_col(position = "dodge", mapping = aes(x=start_day, y=duration, fill = member_casual)) +
+   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1,size=7)) +
+  labs( x = "Day of the week", y = "Total time spent in seconds ",
+        title ="Time spent by user every week day") +
+   facet_wrap(~start_ride_month)
+ 
+p2 <- ggplot(data = plotPrep) +
+   geom_col(position = "dodge", mapping = aes(x=start_day, y=usage, fill = member_casual)) +
+   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1,size=7)) +
+  labs( x = "Day of the week", y = "Total distnace in meter ",
+        title ="Distance of rides every week day") + 
+  facet_wrap(~start_ride_month)
+
+grid.arrange(p1, p2, nrow = 1)
+```
+
+- After quick visualization with ggplot2 in RSTudio, I decided to dig further with Tableau.After preparing a dashboard and playing with it i realized that annual member use bikes with peace of mind, more frequently even for shorter distance. Where casual members really push the limits while riding the bike. I was able conclude this part by finding speed of rides.
+
+### How do your findings relate to your original question?
+- Finding annual and casual user behavior was the aim of this analysis, and i was able to achieve that by comparing data at different stages.which includes find ride distance from start and end latitude and longitudes. and time spend per ride. Which has eventually given me a speed per ride where actual behaviour is revealed.
+
+### Who is your audience? What is the best way to communicate with them?
+* Manager/Director of marketing
+* Cyclistic marketing analytics team
+* Cyclistic executive team
+* Other colleague 
+
+### Can data visualization help you share your findings?
+Yes I have made a quick visualization for meeting where executives can take a look quickly. More on that, I have created a detailed dashboard with tableau where other team members from marketing team and managers can interact with suitable depth of analysis.
+
+
+### Is your presentation accessible to your audience?
+I have shared this presentation with a public link, since that is the only option with [tableau public](https://public.tableau.com/views/CyclisticEDA/CyclisiticVisualization?:language=en&:display_count=y&:origin=viz_share_link).
+
 
 # Act Phase
 
-● What is your final conclusion based on your analysis?
-● How could your team and business apply your insights?
-● What next steps would you or your stakeholders take based on your findings?
-● Is there additional data you could use to expand on your findings?
+### What is your final conclusion based on your analysis?
+- User enjoy riding Cyclisitic bikes regardless of subscription but usage are different because of memberships. Casual users try to use bikes with maximum limit to finish their ride in time, where annual members use it more frequently without worrying of time and cost.
 
+### How could your team and business apply your insights?
+- Casual members' usage are restricted to time and cost, so if team decide to announce new monthly subscription, user behavior about rides might change. Which can be reveal in dashboard.
+
+### What next steps would you or your stakeholders take based on your findings?
+- They will be able to use any of the aspects I have highlighted here for the marketing, or performing research for new kind subscriptions.
+
+
+### Is there additional data you could use to expand on your findings?
+
+- Yes, two things I noticed.
+
+1) Previous data is available which we can use to predict usage.
+
+2) If i can get this data in a form of json, i can update dashboard live.
 # **Currently working**

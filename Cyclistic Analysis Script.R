@@ -13,6 +13,7 @@ library(tidyverse)
 
 # Data visualization library
 library(ggplot2)
+library(gridExtra)
 
 # Get all csv files from the directory
 current_path <- "C:\\Users\\Paresh\\Documents\\Cyclistic\\Cyclistic_DA\\DataSets\\"
@@ -109,13 +110,23 @@ for(i in 1:length(files)){
  # Usage analysis per week day
  plotPrep <- records_with_valid_ride_duration %>% 
    group_by(start_day, member_casual, start_ride_month) %>% 
-   dplyr :: summarise(count = n(), usage = sum(ride_distance_in_meter), duration = sum(ride_avg_speed_in_meter_per_sec))
+   dplyr :: summarise(count = n(), usage = sum(ride_distance_in_meter), duration = sum(ride_duration_in_secs))
 
- ggplot(data = plotPrep) +
+p1 <- ggplot(data = plotPrep) +
  geom_col(position = "dodge", mapping = aes(x=start_day, y=duration, fill = member_casual)) +
    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1,size=7)) +
+  labs( x = "Day of the week", y = "Total time spent in seconds ",
+        title ="Time spent by user every week day") +
    facet_wrap(~start_ride_month)
  
+p2 <- ggplot(data = plotPrep) +
+   geom_col(position = "dodge", mapping = aes(x=start_day, y=usage, fill = member_casual)) +
+   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1,size=7)) +
+  labs( x = "Day of the week", y = "Total distnace in meter ",
+        title ="Distance of rides every week day") + 
+  facet_wrap(~start_ride_month)
+
+grid.arrange(p1, p2, nrow = 1)
  
  # New file name using old one
  newFileName <- paste(paste(finalFileName, "-validated", sep = ""), fileExtension, sep = ".") 
